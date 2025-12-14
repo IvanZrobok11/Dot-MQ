@@ -1,0 +1,192 @@
+@page "/publish"
+@using Broker.AdminUI.Services
+@inject IMqttService MqttService
+@inject ILogger<Publish> Logger
+@rendermode InteractiveServer
+
+<PageTitle>Publish Message</PageTitle>
+
+<div class="container-fluid">
+    <h1>Publish MQTT Message</h1>
+
+    <div class="row mt-4">
+        <div class="col-md-8">
+            <EditForm Model="@_publishModel" OnValidSubmit="HandlePublish">
+                
+                <div class="mb-3">
+                    <label for="topic" class="form-label">Topic</label>
+                    <InputText id="topic" class="form-control" @bind-Value="_publishModel.Topic" placeholder="e.g., sensor/temperature" />
+                </div>
+
+                <div class="mb-3">
+                    <label for="payload" class="form-label">Payload</label>
+                    <InputTextArea id="payload" class="form-control" rows="5" @bind-Value="_publishModel.Payload" placeholder="Enter message payload" />
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="qos" class="form-label">Quality of Service (QoS)</label>
+                        <InputNumber id="qos" class="form-control" @bind-Value="_publishModel.Qos" min="0" max="2" />
+                        <small class="form-text text-muted">0 = At most once, 1 = At least once, 2 = Exactly once</small>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-check mt-4">
+                            <InputCheckbox id="retain" class="form-check-input" @bind-Value="_publishModel.Retain" />
+                            <label class="form-check-label" for="retain">
+                                Retain Message
+                            </label>
+                            <small class="form-text text-muted d-block">If checked, the message will be retained by the broker</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <button type="submit" class="btn btn-primary" disabled="@_publishing">
+                        @if (_publishing)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                        }
+                        Publish Message
+                    </button>
+                    <button type="button" class="btn btn-secondary ms-2" @onclick="ClearForm">Clear</button>
+                </div>
+            </EditForm>
+
+            @if (_lastPublishResult != null)
+            {
+                <div class="alert @(_lastPublishResult.Success ? "alert-success" : "alert-danger") mt-3">
+                    @if (_lastPublishResult.Success)
+                    {
+                        <strong>Success!</strong> 
+                        @("Message published to topic")
+                        <code>@_lastPublishResult.Topic</code> 
+                        @("at")
+                        <code>@_lastPublishResult.PublishedAt.ToString("HH:mm:ss")</code>
+                    }
+                    else
+                    {
+                        <strong>Error:</strong> @_lastPublishResult.ErrorMessage
+                    }
+                </div>
+            }
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Connection Status</h5>
+                </div>
+                <div class="card-body">
+                    @if (MqttService.IsConnected)
+                    {
+                        <span class="badge bg-success">Connected</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-danger">Disconnected</span>
+                        <p class="text-muted mt-2">Connection will be established automatically when publishing.</p>
+                    }
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5>Quick Examples</h5>
+                </div>
+                <div class="card-body">
+                    <button class="btn btn-sm btn-outline-primary w-100 mb-2" @onclick="@(() => LoadExample("sensor/temperature", "25.5"))">
+                        Temperature Sensor
+                    </button>
+                    <button class="btn btn-sm btn-outline-primary w-100 mb-2" @onclick="@(() => LoadExample("device/status", "online"))">
+                        Device Status
+                    </button>
+                    <button class="btn btn-sm btn-outline-primary w-100 mb-2" @onclick="@(() => LoadExample("alerts/warning", "System warning message"))">
+                        Alert Message
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private PublishModel _publishModel = new();
+    private bool _publishing;
+    private PublishResult? _lastPublishResult;
+
+    private class PublishModel
+    {
+        public string Topic { get; set; } = string.Empty;
+        public string Payload { get; set; } = string.Empty;
+        public int Qos { get; set; } = 0;
+        public bool Retain { get; set; } = false;
+    }
+
+    private class PublishResult
+    {
+        public bool Success { get; set; }
+        public string Topic { get; set; } = string.Empty;
+        public string? ErrorMessage { get; set; }
+        public DateTime PublishedAt { get; set; }
+    }
+
+    private async Task HandlePublish()
+    {
+        if (string.IsNullOrWhiteSpace(_publishModel.Topic) || string.IsNullOrWhiteSpace(_publishModel.Payload))
+        {
+            return;
+        }
+
+        _publishing = true;
+        _lastPublishResult = null;
+        StateHasChanged();
+
+        try
+        {
+            var success = await MqttService.PublishAsync(
+                _publishModel.Topic,
+                _publishModel.Payload,
+                _publishModel.Qos,
+                _publishModel.Retain);
+
+            _lastPublishResult = new PublishResult
+            {
+                Success = success,
+                Topic = _publishModel.Topic,
+                ErrorMessage = success ? null : "Failed to publish message. Check broker connection.",
+                PublishedAt = DateTime.Now
+            };
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error publishing message");
+            _lastPublishResult = new PublishResult
+            {
+                Success = false,
+                Topic = _publishModel.Topic,
+                ErrorMessage = ex.Message,
+                PublishedAt = DateTime.Now
+            };
+        }
+        finally
+        {
+            _publishing = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ClearForm()
+    {
+        _publishModel = new PublishModel();
+        _lastPublishResult = null;
+        StateHasChanged();
+    }
+
+    private void LoadExample(string topic, string payload)
+    {
+        _publishModel.Topic = topic;
+        _publishModel.Payload = payload;
+        StateHasChanged();
+    }
+}
+

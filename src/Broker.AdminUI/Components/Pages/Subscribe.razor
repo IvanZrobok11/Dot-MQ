@@ -1,0 +1,323 @@
+@page "/subscribe"
+@using Broker.AdminUI.Services
+@inject IMqttService MqttService
+@inject ILogger<Subscribe> Logger
+@rendermode InteractiveServer
+
+<PageTitle>Subscribe to Topics</PageTitle>
+
+<div class="container-fluid">
+    <h1>Subscribe to MQTT Topics</h1>
+
+    <div class="row mt-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Subscribe to Topic</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="topicFilter" class="form-label">Topic Filter</label>
+                        <input type="text" id="topicFilter" class="form-control" @bind="_topicFilter" @bind:event="oninput" placeholder="e.g., sensor/+, sensor/#" />
+                        <small class="form-text text-muted">
+                            Use <code>+</code> for single-level wildcard, <code>#</code> for multi-level wildcard
+                        </small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="subscribeQos" class="form-label">Quality of Service (QoS)</label>
+                        <input type="number" id="subscribeQos" class="form-control" @bind="_subscribeQos" min="0" max="2" />
+                    </div>
+
+                    <button class="btn btn-primary w-100 mb-2" @onclick="SubscribeToTopic" disabled="@_subscribing">
+                        @if (_subscribing)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                        }
+                        Subscribe
+                    </button>
+
+                    @if (_subscribeResult != null)
+                    {
+                        <div class="alert @(_subscribeResult.Success ? "alert-success" : "alert-danger")">
+                            @if (_subscribeResult.Success)
+                            {
+                                <strong>Subscribed!</strong> @("to") @_subscribeResult.TopicFilter
+                            }
+                            else
+                            {
+                                <strong>Error:</strong> @_subscribeResult.ErrorMessage
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5>Active Subscriptions</h5>
+                </div>
+                <div class="card-body">
+                    @if (_activeSubscriptions.Any())
+                    {
+                        <ul class="list-group">
+                            @foreach (var subscription in _activeSubscriptions)
+                            {
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>@subscription.TopicFilter</strong>
+                                        <br />
+                                        <small class="text-muted">QoS: @subscription.Qos</small>
+                                    </div>
+                                    <button class="btn btn-sm btn-danger" @onclick="() => UnsubscribeFromTopic(subscription.TopicFilter)">
+                                        Unsubscribe
+                                    </button>
+                                </li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        <p class="text-muted">No active subscriptions</p>
+                    }
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5>Connection Status</h5>
+                </div>
+                <div class="card-body">
+                    @if (MqttService.IsConnected)
+                    {
+                        <span class="badge bg-success">Connected</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-danger">Disconnected</span>
+                        <p class="text-muted mt-2">Connection will be established automatically when subscribing.</p>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5>Received Messages</h5>
+                    <div>
+                        <button class="btn btn-sm btn-secondary" @onclick="ClearMessages">Clear</button>
+                        <button class="btn btn-sm btn-secondary ms-2" @onclick="ToggleAutoScroll">
+                            @(_autoScroll ? "Disable" : "Enable") Auto-Scroll
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body" style="max-height: 600px; overflow-y: auto;" @ref="_messagesContainer">
+                    @if (_receivedMessages.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Time</th>
+                                        <th>Topic</th>
+                                        <th>Payload</th>
+                                        <th>QoS</th>
+                                        <th>Retain</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var message in _receivedMessages.OrderByDescending(m => m.ReceivedAt))
+                                    {
+                                        <tr>
+                                            <td>@message.ReceivedAt.ToString("HH:mm:ss.fff")</td>
+                                            <td><code>@message.Topic</code></td>
+                                            <td>
+                                                <div style="max-width: 400px; word-break: break-word;">
+                                                    @message.Payload
+                                                </div>
+                                            </td>
+                                            <td>@message.Qos</td>
+                                            <td>
+                                                @if (message.Retain)
+                                                {
+                                                    <span class="badge bg-warning">Yes</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">No</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="text-muted">No messages received yet. Subscribe to a topic to start receiving messages.</p>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string _topicFilter = string.Empty;
+    private int _subscribeQos = 0;
+    private bool _subscribing;
+    private SubscribeResult? _subscribeResult;
+    private readonly List<ActiveSubscription> _activeSubscriptions = new();
+    private readonly List<MessageReceivedEventArgs> _receivedMessages = new();
+    private bool _autoScroll = true;
+    private ElementReference _messagesContainer;
+
+    private class ActiveSubscription
+    {
+        public string TopicFilter { get; set; } = string.Empty;
+        public int Qos { get; set; }
+        public DateTime SubscribedAt { get; set; }
+    }
+
+    private class SubscribeResult
+    {
+        public bool Success { get; set; }
+        public string TopicFilter { get; set; } = string.Empty;
+        public string? ErrorMessage { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        MqttService.MessageReceived += OnMessageReceived;
+        await base.OnInitializedAsync();
+    }
+
+    private async Task SubscribeToTopic()
+    {
+        if (string.IsNullOrWhiteSpace(_topicFilter))
+        {
+            _subscribeResult = new SubscribeResult
+            {
+                Success = false,
+                ErrorMessage = "Topic filter cannot be empty"
+            };
+            StateHasChanged();
+            return;
+        }
+
+        if (_activeSubscriptions.Any(s => s.TopicFilter == _topicFilter))
+        {
+            _subscribeResult = new SubscribeResult
+            {
+                Success = false,
+                ErrorMessage = "Already subscribed to this topic filter"
+            };
+            StateHasChanged();
+            return;
+        }
+
+        _subscribing = true;
+        _subscribeResult = null;
+        StateHasChanged();
+
+        try
+        {
+            var success = await MqttService.SubscribeAsync(_topicFilter, _subscribeQos);
+
+            if (success)
+            {
+                _activeSubscriptions.Add(new ActiveSubscription
+                {
+                    TopicFilter = _topicFilter,
+                    Qos = _subscribeQos,
+                    SubscribedAt = DateTime.Now
+                });
+                _subscribeResult = new SubscribeResult
+                {
+                    Success = true,
+                    TopicFilter = _topicFilter
+                };
+                _topicFilter = string.Empty;
+            }
+            else
+            {
+                _subscribeResult = new SubscribeResult
+                {
+                    Success = false,
+                    TopicFilter = _topicFilter,
+                    ErrorMessage = "Failed to subscribe. Check broker connection."
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error subscribing to topic");
+            _subscribeResult = new SubscribeResult
+            {
+                Success = false,
+                TopicFilter = _topicFilter,
+                ErrorMessage = ex.Message
+            };
+        }
+        finally
+        {
+            _subscribing = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task UnsubscribeFromTopic(string topicFilter)
+    {
+        try
+        {
+            var success = await MqttService.UnsubscribeAsync(topicFilter);
+            if (success)
+            {
+                _activeSubscriptions.RemoveAll(s => s.TopicFilter == topicFilter);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error unsubscribing from topic");
+        }
+        finally
+        {
+            StateHasChanged();
+        }
+    }
+
+    private void OnMessageReceived(object? sender, MessageReceivedEventArgs e)
+    {
+        _receivedMessages.Add(e);
+        
+        // Keep only last 1000 messages
+        if (_receivedMessages.Count > 1000)
+        {
+            _receivedMessages.RemoveAt(0);
+        }
+
+        InvokeAsync(() =>
+        {
+            StateHasChanged();
+            if (_autoScroll)
+            {
+                // Scroll to bottom would require JS interop, but we'll just update the UI
+            }
+        });
+    }
+
+    private void ClearMessages()
+    {
+        _receivedMessages.Clear();
+        StateHasChanged();
+    }
+
+    private void ToggleAutoScroll()
+    {
+        _autoScroll = !_autoScroll;
+        StateHasChanged();
+    }
+}
+
