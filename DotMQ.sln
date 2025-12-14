@@ -21,6 +21,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Subscriber", "clients\Subsc
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Broker.AdminUI", "src\Broker.AdminUI\Broker.AdminUI.csproj", "{30B946B9-AC86-60C4-5550-2EB4F305EF30}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnitTests", "tests\UnitTests\UnitTests.csproj", "{DC2B53B2-C025-6BEE-1E94-969D0F1E9FDC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -55,12 +57,17 @@ Global
 		{30B946B9-AC86-60C4-5550-2EB4F305EF30}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{30B946B9-AC86-60C4-5550-2EB4F305EF30}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{30B946B9-AC86-60C4-5550-2EB4F305EF30}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DC2B53B2-C025-6BEE-1E94-969D0F1E9FDC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DC2B53B2-C025-6BEE-1E94-969D0F1E9FDC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DC2B53B2-C025-6BEE-1E94-969D0F1E9FDC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DC2B53B2-C025-6BEE-1E94-969D0F1E9FDC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{90EE2537-A746-5CF5-D81E-0D53A8BE692A} = {C37E2AAB-E985-4841-BBE2-F82AA7FABBA4}
+		{DC2B53B2-C025-6BEE-1E94-969D0F1E9FDC} = {83EEA3B8-BAF8-49D7-BA8A-5151352A0BFA}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {68EB24A9-17CF-4574-8D0C-9A2EA5E46895}
