@@ -1,20 +1,16 @@
-﻿using Broker.Core.Packets;
+using Broker.Core.Packets;
 using Broker.Core.Qos;
+using Broker.Core.Routing;
 using Microsoft.Extensions.Logging;
 
-namespace Broker.Core.Routing;
+namespace Broker.Core.PacketHandlers;
 
-public interface IUnsubscribeService
-{
-    Task<MqttUnsubAckPacket> HandleAsync(IClient connection, MqttUnsubscribePacket packet, CancellationToken ct);
-}
-
-public class UnsubscribeService(
+public class UnsubscribeHandler(
     ISubscriptionManager subs,
     ISessionStore sessions,
-    ILogger<UnsubscribeService> logger) : IUnsubscribeService
+    ILogger<UnsubscribeHandler> logger) : PacketHandlerBase<MqttUnsubscribePacket, MqttUnsubAckPacket>
 {
-    public async Task<MqttUnsubAckPacket> HandleAsync(IClient connection, MqttUnsubscribePacket packet, CancellationToken ct)
+    public override async Task<MqttUnsubAckPacket?> HandleAsync(IMqttConnection connection, MqttUnsubscribePacket packet, CancellationToken ct)
     {
         logger.LogDebug("Unsubscribe request from {ClientId}", connection.ClientId);
 
@@ -32,3 +28,4 @@ public class UnsubscribeService(
         return new MqttUnsubAckPacket { PacketId = packet.PacketId };
     }
 }
+

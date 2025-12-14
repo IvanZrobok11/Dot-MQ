@@ -1,59 +1,55 @@
 ﻿using Broker.Core;
 using Broker.Core.Packets;
-using Broker.Core.Qos;
 using Broker.Core.Routing;
-using Microsoft.Extensions.Logging;
 
 namespace Broker.Frontend;
 
 public class PacketDispatcher(
-    IConnectService connect,
-    IPublishService publish,
-    ISubscribeService subscribe,
-    IUnsubscribeService unsubscribe,
-    IQosFlowEngine qos,
-    IMqttTcpServer server,
-    ILogger<PacketDispatcher> logger)
+    IPacketHandler<MqttConnectPacket, MqttConnAckPacket> connect,
+    IPacketHandler<MqttPublishPacket> publish,
+    IPacketHandler<MqttSubscribePacket, MqttSubAckPacket> subscribe,
+    IPacketHandler<MqttUnsubscribePacket, MqttUnsubAckPacket> unsubscribe,
+    IPacketHandler<MqttPubAckPacket> pubAckHandler,
+    IPacketHandler<MqttPubRecPacket> pubRecHandler,
+    IPacketHandler<MqttPubRelPacket> pubRelHandler,
+    IPacketHandler<MqttPubCompPacket> pubCompHandler,
+    IMqttTcpServer server)
 {
+    private readonly Dictionary<MqttPacketType, IPacketHandler> _handlers = new()
+    {
+        { MqttPacketType.CONNECT, connect },
+        { MqttPacketType.PUBLISH, publish },
+        { MqttPacketType.SUBSCRIBE, subscribe },
+        { MqttPacketType.UNSUBSCRIBE, unsubscribe },
+        { MqttPacketType.PUBACK, pubAckHandler },
+        { MqttPacketType.PUBREC, pubRecHandler },
+        { MqttPacketType.PUBREL, pubRelHandler },
+        { MqttPacketType.PUBCOMP, pubCompHandler }
+    };
+
     public async Task DispatchAsync(MqttClientConnection connection, MqttPacket packet, CancellationToken cancellationToken)
     {
-        switch (packet.PacketType)
+        if (!_handlers.TryGetValue(packet.PacketType, out var handler))
         {
-            case MqttPacketType.CONNECT:
-                var connAck = await connect.HandleAsync(connection, (MqttConnectPacket)packet, cancellationToken);
-                await connection.SendAsync(connAck, cancellationToken);
+            throw new NotImplementedException($"No handler registered for packet type: {packet.PacketType}");
+        }
 
-                // Register connection if CONNECT was accepted
-                if (connAck.ReturnCode == MqttConnectReturnCode.Accepted)
-                {
-                    await server.RegisterClientConnectionAsync(connection.ClientId, connection);
-                }
-                break;
-            case MqttPacketType.PUBLISH:
-                await publish.HandleAsync(connection, (MqttPublishPacket)packet, cancellationToken);
-                break;
-            case MqttPacketType.SUBSCRIBE:
-                var subAck = await subscribe.HandleAsync(connection, (MqttSubscribePacket)packet, cancellationToken);
-                await connection.SendAsync(subAck, cancellationToken);
-                break;
-            case MqttPacketType.UNSUBSCRIBE:
-                var unsubAck = await unsubscribe.HandleAsync(connection, (MqttUnsubscribePacket)packet, cancellationToken);
-                await connection.SendAsync(unsubAck, cancellationToken);
-                break;
-            case MqttPacketType.PUBACK:
-                await qos.HandlePubAckAsync(connection, (MqttPubAckPacket)packet, cancellationToken);
-                break;
-            case MqttPacketType.PUBREC:
-                await qos.HandlePubRecAsync(connection, (MqttPubRecPacket)packet, cancellationToken);
-                break;
-            case MqttPacketType.PUBREL:
-                await qos.HandlePubRelAsync(connection, (MqttPubRelPacket)packet, cancellationToken);
-                break;
-            case MqttPacketType.PUBCOMP:
-                await qos.HandlePubCompAsync(connection, (MqttPubCompPacket)packet, cancellationToken);
-                break;
-            default:
-                throw new NotImplementedException(nameof(packet.PacketType));
+        var response = await handler.HandleAsync(connection, packet, cancellationToken);
+
+        // Send response packet if one was returned
+        // some types of handles (mainly for QoS 2 messages) do not response message for answer
+        if (response != null)
+        {
+            await connection.SendAsync(response, cancellationToken);
+        }
+
+        // Special handling for CONNECT - register connection if accepted
+        if (packet.PacketType == MqttPacketType.CONNECT && response is MqttConnAckPacket connAck)
+        {
+            if (connAck.ReturnCode == MqttConnectReturnCode.Accepted)
+            {
+                await server.RegisterClientConnectionAsync(connection.ClientId, connection);
+            }
         }
     }
 }

@@ -1,24 +1,20 @@
-﻿using Broker.Core.Packets;
+using Broker.Core.Packets;
 using Broker.Core.Qos;
+using Broker.Core.Routing;
 using Broker.Core.Storage.Models;
 using Microsoft.Extensions.Logging;
 
-namespace Broker.Core.Routing;
+namespace Broker.Core.PacketHandlers;
 
-public interface IConnectService
-{
-    Task<MqttConnAckPacket> HandleAsync(IMqttConnection connection, MqttConnectPacket packet, CancellationToken ct);
-}
-
-public class ConnectService(
+public class ConnectHandler(
     ISessionStore sessionStore,
     ISubscriptionManager subs,
-    IQosFlowEngine qosEngine,
-    ILogger<ConnectService> logger,
+    IIncomingPublishQosHandler incomingPublishQosHandler,
+    ILogger<ConnectHandler> logger,
     IPendingStore pendingStore,
-    IBrokerMetricsService metrics) : IConnectService
+    IBrokerMetricsService metrics) : PacketHandlerBase<MqttConnectPacket, MqttConnAckPacket>
 {
-    public async Task<MqttConnAckPacket> HandleAsync(IMqttConnection connection, MqttConnectPacket packet, CancellationToken ct)
+    public override async Task<MqttConnAckPacket?> HandleAsync(IMqttConnection connection, MqttConnectPacket packet, CancellationToken ct)
     {
         logger.LogDebug("Processing CONNECT from {ClientId}", packet.ClientId);
 
@@ -61,7 +57,7 @@ public class ConnectService(
                     Retain = false,
                     Duplicate = true
                 };
-                await qosEngine.HandleIncomingPublishAsync(connection, publish, ct);
+                await incomingPublishQosHandler.HandleAsync(connection, publish, ct);
             }
         }
 
@@ -85,3 +81,4 @@ public class ConnectService(
         return new MqttConnAckPacket { SessionPresent = sessionPresent, ReturnCode = MqttConnectReturnCode.Accepted };
     }
 }
+

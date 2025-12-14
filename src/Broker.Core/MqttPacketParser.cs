@@ -5,7 +5,6 @@ namespace Broker.Core;
 /// <summary>
 /// Parser for MQTT packets from byte arrays.
 /// </summary>
-[Obsolete]
 public static class MqttPacketParser
 {
     /// <summary>

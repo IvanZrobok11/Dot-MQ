@@ -1,4 +1,6 @@
-﻿using Broker.Core.Qos;
+﻿using Broker.Core.PacketHandlers;
+using Broker.Core.Packets;
+using Broker.Core.Qos;
 using Broker.Core.Routing;
 using Broker.Frontend;
 using Broker.Storage;
@@ -15,11 +17,15 @@ public static class ServiceCollectionExtensions
             .AddSingleton<PacketIdManager>()
             .AddSingleton<ISubscriptionManager, SubscriptionManager>()
             .AddSingleton<IMessageRouter, MessageRouter>()
-            .AddScoped<IConnectService, ConnectService>()
-            .AddScoped<IPublishService, PublishService>()
-            .AddScoped<ISubscribeService, SubscribeService>()
-            .AddScoped<IUnsubscribeService, UnsubscribeService>()
-            .AddScoped<IQosFlowEngine, QosFlowEngine>()
+            .AddScoped<IIncomingPublishQosHandler, IncomingPublishQosHandler>()
+            .AddScoped<IPacketHandler<MqttConnectPacket, MqttConnAckPacket>, ConnectHandler>()
+            .AddScoped<IPacketHandler<MqttPublishPacket>, PublishHandler>()
+            .AddScoped<IPacketHandler<MqttSubscribePacket, MqttSubAckPacket>, SubscribeHandler>()
+            .AddScoped<IPacketHandler<MqttUnsubscribePacket, MqttUnsubAckPacket>, UnsubscribeHandler>()
+            .AddScoped<IPacketHandler<MqttPubAckPacket>, PubAckHandler>()
+            .AddScoped<IPacketHandler<MqttPubRecPacket>, PubRecHandler>()
+            .AddScoped<IPacketHandler<MqttPubRelPacket>, PubRelHandler>()
+            .AddScoped<IPacketHandler<MqttPubCompPacket>, PubCompHandler>()
             .AddScoped<PacketDispatcher>()
             .AddSingleton<IMqttTcpServer, MqttTcpServer>()
             .AddMqttClientConnectionFactory()

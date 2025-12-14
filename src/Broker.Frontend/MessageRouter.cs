@@ -1,8 +1,9 @@
+using Broker.Core;
 using Broker.Core.Packets;
-using Broker.Frontend;
+using Broker.Core.Routing;
 using Microsoft.Extensions.Logging;
 
-namespace Broker.Core.Routing;
+namespace Broker.Frontend;
 
 /// <summary>
 /// Routes MQTT PUBLISH messages to subscribers.
@@ -13,9 +14,9 @@ public class MessageRouter(
         ILogger<MessageRouter> logger) : IMessageRouter
 {
     /// <summary>
-    /// Після публікації повідомлення паблішером, та надання відповіді паб акт
-    /// викликається цю функція
-    /// Надсилає повідомлення всім онлайн підписникам
+    /// After the publisher publishes the message and responds to the pub act
+    /// this function is called
+    /// Sends the message to all online subscribers
     /// </summary>
     public async Task RouteAsync(MqttPublishPacket publishPacket, CancellationToken cancellationToken)
     {

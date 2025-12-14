@@ -1,25 +1,21 @@
-﻿using Broker.Core.Packets;
+using Broker.Core.Packets;
 using Broker.Core.Qos;
+using Broker.Core.Routing;
 using Broker.Core.Storage.Models;
 using Microsoft.Extensions.Logging;
 
-namespace Broker.Core.Routing;
+namespace Broker.Core.PacketHandlers;
 
-public interface ISubscribeService
-{
-    Task<MqttSubAckPacket> HandleAsync(IMqttConnection connection, MqttSubscribePacket packet, CancellationToken ct);
-}
-
-public class SubscribeService(ISubscriptionManager subs,
+public class SubscribeHandler(ISubscriptionManager subs,
     ISessionStore sessions,
     IRetainedStore retained,
     PacketIdManager packetIds,
     IMessageRouter messageRouter,
-    ILogger<SubscribeService> logger) : ISubscribeService
+    ILogger<SubscribeHandler> logger) : PacketHandlerBase<MqttSubscribePacket, MqttSubAckPacket>
 {
     private readonly IRetainedStore _retained = retained;
 
-    public async Task<MqttSubAckPacket> HandleAsync(IMqttConnection connection, MqttSubscribePacket packet, CancellationToken ct)
+    public override async Task<MqttSubAckPacket?> HandleAsync(IMqttConnection connection, MqttSubscribePacket packet, CancellationToken ct)
     {
         logger.LogDebug("Subscribe request from {ClientId} with {Count} filters", connection.ClientId, packet.Subscriptions.Count);
         var results = new List<QoSLevel>();
@@ -67,3 +63,4 @@ public class SubscribeService(ISubscriptionManager subs,
         };
     }
 }
+

@@ -1,21 +1,17 @@
-﻿using Broker.Core.Packets;
+using Broker.Core.Packets;
 using Broker.Core.Qos;
+using Broker.Core.Routing;
 using Microsoft.Extensions.Logging;
 
-namespace Broker.Core.Routing;
+namespace Broker.Core.PacketHandlers;
 
-public interface IPublishService
-{
-    Task HandleAsync(IMqttConnection connection, MqttPublishPacket packet, CancellationToken ct);
-}
-
-public class PublishService(IMessageRouter router,
-    IQosFlowEngine qosEngine,
+public class PublishHandler(IMessageRouter router,
+    IIncomingPublishQosHandler incomingPublishQosHandler,
     IRetainedStore retained,
-    ILogger<PublishService> logger,
-    IBrokerMetricsService metrics) : IPublishService
+    ILogger<PublishHandler> logger,
+    IBrokerMetricsService metrics) : PacketHandlerBase<MqttPublishPacket>
 {
-    public async Task HandleAsync(IMqttConnection connection, MqttPublishPacket packet, CancellationToken ct)
+    public override async Task HandleAsync(IMqttConnection connection, MqttPublishPacket packet, CancellationToken ct)
     {
         logger.LogDebug("Publish from {ClientId} to {Topic} (QoS {Qos})", connection.ClientId, packet.TopicName, packet.QoS);
         metrics.RecordMessageReceived();
@@ -41,6 +37,7 @@ public class PublishService(IMessageRouter router,
             return;
         }
 
-        await qosEngine.HandleIncomingPublishAsync(connection, packet, ct);
+        await incomingPublishQosHandler.HandleAsync(connection, packet, ct);
     }
 }
+
