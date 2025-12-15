@@ -1,3 +1,4 @@
+using Broker.Core.Storage.Models;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 
@@ -6,10 +7,11 @@ namespace Broker.Core.Routing;
 /// <summary>
 /// Thread-safe subscription manager for MQTT broker.
 /// </summary>
-public class SubscriptionManager(ILogger<SubscriptionManager> logger) : ISubscriptionManager
+public class SubscriptionManager(ILogger<SubscriptionManager> logger, IBrokerMetricsService metrics) : ISubscriptionManager
 {
     // Key: ClientId, Value: Dictionary of TopicFilter -> Subscription
     private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, Subscription>> _subscriptions = new();
+    private int _subscriptionsCount => _subscriptions.Values.SelectMany(s => s.Values).Count();
 
     public QoSLevel Subscribe(string clientId, string topicFilter, QoSLevel requestedQos)
     {
@@ -43,6 +45,9 @@ public class SubscriptionManager(ILogger<SubscriptionManager> logger) : ISubscri
 
         clientSubscriptions.AddOrUpdate(topicFilter, subscription, (_, _) => subscription);
 
+        // Update metrics with current active subscriptions count
+        metrics.UpdateActiveSubscriptions(_subscriptionsCount);
+
         return grantedQos;
     }
 
@@ -66,6 +71,11 @@ public class SubscriptionManager(ILogger<SubscriptionManager> logger) : ISubscri
             _subscriptions.TryRemove(clientId, out _);
         }
 
+        if (removed)
+        {
+            metrics.UpdateActiveSubscriptions(_subscriptionsCount);
+        }
+
         return removed;
     }
 
@@ -77,6 +87,7 @@ public class SubscriptionManager(ILogger<SubscriptionManager> logger) : ISubscri
         }
 
         _subscriptions.TryRemove(clientId, out _);
+        metrics.UpdateActiveSubscriptions(_subscriptionsCount);
     }
 
     public IReadOnlyList<Subscription> GetSubscriptions(string clientId)
@@ -99,6 +110,19 @@ public class SubscriptionManager(ILogger<SubscriptionManager> logger) : ISubscri
         return _subscriptions.Values
             .SelectMany(clientSubscriptions => clientSubscriptions.Values
                 .Where(subscription => TopicMatcher.Matches(subscription.TopicFilter, topicName)))
+            .ToList();
+    }
+
+    public IReadOnlyList<Subscription> GetSubscribersByTopicFilter(string topicFilter)
+    {
+        if (string.IsNullOrEmpty(topicFilter) || !TopicMatcher.IsValidTopicFilter(topicFilter))
+        {
+            return [];
+        }
+
+        return _subscriptions.Values
+            .SelectMany(clientSubscriptions => clientSubscriptions.Values
+                .Where(subscription => subscription.TopicFilter == topicFilter))
             .ToList();
     }
 

@@ -1,7 +1,6 @@
-using Broker.Core;
-using Broker.Core.Packets;
+using Broker.Core.Routing;
 
-namespace Broker.Core.Routing;
+namespace Broker.Core.PacketHandlers;
 
 /// <summary>
 /// Non-generic base interface for handling MQTT packets.

@@ -1,3 +1,5 @@
+using Broker.Core.Storage.Models;
+
 namespace Broker.Core.Routing;
 
 /// <summary>
@@ -41,6 +43,13 @@ public interface ISubscriptionManager
     /// <param name="topicName">Topic name to find subscribers for.</param>
     /// <returns>List of subscriptions that match the topic.</returns>
     IReadOnlyList<Subscription> GetSubscribers(string topicName);
+
+    /// <summary>
+    /// Gets all subscribers that have a specific topic filter.
+    /// </summary>
+    /// <param name="topicFilter">Topic filter to find subscribers for.</param>
+    /// <returns>List of subscriptions that have the exact topic filter.</returns>
+    IReadOnlyList<Subscription> GetSubscribersByTopicFilter(string topicFilter);
 
     /// <summary>
     /// Gets all subscriptions across all clients.

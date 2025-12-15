@@ -1,5 +1,5 @@
-using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 
 namespace Broker.Core.Routing;
 
@@ -45,38 +45,38 @@ public class BrokerMetricsService(ILogger<BrokerMetricsService> logger) : IBroke
     {
         Interlocked.Increment(ref _totalMessagesPublished);
         _messageTimestamps.Enqueue(DateTime.UtcNow);
-        logger?.LogTrace("Recorded message published. Total: {Total}", _totalMessagesPublished);
+        logger.LogTrace("Recorded message published. Total: {Total}", _totalMessagesPublished);
     }
 
     public void RecordMessageReceived()
     {
         Interlocked.Increment(ref _totalMessagesReceived);
         _messageTimestamps.Enqueue(DateTime.UtcNow);
-        logger?.LogTrace("Recorded message received. Total: {Total}", _totalMessagesReceived);
+        logger.LogTrace("Recorded message received. Total: {Total}", _totalMessagesReceived);
     }
 
     public void UpdateConnectedClients(int count)
     {
         Interlocked.Exchange(ref _connectedClients, count);
-        logger?.LogDebug("Updated connected clients count: {Count}", count);
+        logger.LogDebug("Updated connected clients count: {Count}", count);
     }
 
     public void UpdateActiveSubscriptions(int count)
     {
         Interlocked.Exchange(ref _activeSubscriptions, count);
-        logger?.LogDebug("Updated active subscriptions count: {Count}", count);
+        logger.LogDebug("Updated active subscriptions count: {Count}", count);
     }
 
     public void UpdateRetainedMessages(int count)
     {
         Interlocked.Exchange(ref _retainedMessages, count);
-        logger?.LogDebug("Updated retained messages count: {Count}", count);
+        logger.LogDebug("Updated retained messages count: {Count}", count);
     }
 
     public void UpdatePendingMessages(int count)
     {
         Interlocked.Exchange(ref _pendingMessages, count);
-        logger?.LogDebug("Updated pending messages count: {Count}", count);
+        logger.LogDebug("Updated pending messages count: {Count}", count);
     }
 }
 

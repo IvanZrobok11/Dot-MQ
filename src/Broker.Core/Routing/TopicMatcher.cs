@@ -156,12 +156,7 @@ public static class TopicMatcher
         }
 
         // Topic names cannot contain wildcards
-        if (topicName.Contains('+') || topicName.Contains('#'))
-        {
-            return false;
-        }
-
-        return true;
+        return !(topicName.Contains('+') || topicName.Contains('#'));
     }
 }
 

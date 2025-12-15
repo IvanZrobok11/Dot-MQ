@@ -6,10 +6,6 @@ using Microsoft.Extensions.Logging;
 
 namespace Broker.Storage;
 
-// ============================================================================
-// SESSION STORE IMPLEMENTATION
-// ============================================================================
-
 public class LiteDbSessionStore : ISessionStore, IDisposable
 {
     private readonly LiteDatabase _db;

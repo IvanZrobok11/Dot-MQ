@@ -1,6 +1,6 @@
 ﻿using Broker.Core;
+using Broker.Core.PacketHandlers;
 using Broker.Core.Packets;
-using Broker.Core.Routing;
 
 namespace Broker.Frontend;
 
@@ -13,7 +13,8 @@ public class PacketDispatcher(
     IPacketHandler<MqttPubRecPacket> pubRecHandler,
     IPacketHandler<MqttPubRelPacket> pubRelHandler,
     IPacketHandler<MqttPubCompPacket> pubCompHandler,
-    IMqttTcpServer server)
+    IPacketHandler<MqttPingReqPacket, MqttPingRespPacket> pingReqHandler,
+    IMqttTcpServer mqttServer)
 {
     private readonly Dictionary<MqttPacketType, IPacketHandler> _handlers = new()
     {
@@ -24,7 +25,8 @@ public class PacketDispatcher(
         { MqttPacketType.PUBACK, pubAckHandler },
         { MqttPacketType.PUBREC, pubRecHandler },
         { MqttPacketType.PUBREL, pubRelHandler },
-        { MqttPacketType.PUBCOMP, pubCompHandler }
+        { MqttPacketType.PUBCOMP, pubCompHandler },
+        { MqttPacketType.PINGREQ, pingReqHandler }
     };
 
     public async Task DispatchAsync(MqttClientConnection connection, MqttPacket packet, CancellationToken cancellationToken)
@@ -48,7 +50,7 @@ public class PacketDispatcher(
         {
             if (connAck.ReturnCode == MqttConnectReturnCode.Accepted)
             {
-                await server.RegisterClientConnectionAsync(connection.ClientId, connection);
+                await mqttServer.RegisterClientConnectionAsync(connection.ClientId, connection);
             }
         }
     }

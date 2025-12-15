@@ -1,5 +1,6 @@
 using Broker.Core.Packets;
 using Broker.Core.Qos;
+using Broker.Core.Routing;
 using Broker.Core.Storage.Models;
 using Broker.Storage.Models;
 using LiteDB;
@@ -7,19 +8,18 @@ using Microsoft.Extensions.Logging;
 
 namespace Broker.Storage;
 
-// ============================================================================
-// PENDING STORE IMPLEMENTATION
-// ============================================================================
 public class LiteDbPendingStore : IPendingStore, IDisposable
 {
     private readonly LiteDatabase _db;
     private readonly ILiteCollection<PendingMessageDocument> _pending;
     private readonly ILogger<LiteDbPendingStore> _logger;
+    private readonly IBrokerMetricsService _metrics;
 
-    public LiteDbPendingStore(LiteDbProvider liteDbProvider, ILogger<LiteDbPendingStore> logger)
+    public LiteDbPendingStore(LiteDbProvider liteDbProvider, ILogger<LiteDbPendingStore> logger, IBrokerMetricsService metrics)
     {
         _db = liteDbProvider.Database;
         _logger = logger;
+        _metrics = metrics;
 
         _pending = _db.GetCollection<PendingMessageDocument>("pending");
         _pending.EnsureIndex(x => x.Id, unique: true);
@@ -27,6 +27,7 @@ public class LiteDbPendingStore : IPendingStore, IDisposable
         _pending.EnsureIndex(x => x.CreatedAt);
 
         _logger.LogInformation("LiteDB Pending Store initialized");
+        _metrics.UpdatePendingMessages(_pending.Count());
     }
 
     public async Task AddPendingAsync(string clientId, ushort packetId, MqttPublishPacket message, CancellationToken cancellationToken, Qos2State? state = null)
@@ -46,6 +47,7 @@ public class LiteDbPendingStore : IPendingStore, IDisposable
         };
 
         _pending.Upsert(doc);
+        _metrics.UpdatePendingMessages(_pending.Count());
     }
 
 
@@ -56,6 +58,7 @@ public class LiteDbPendingStore : IPendingStore, IDisposable
 
         _logger.LogDebug("Removed pending message for {ClientId}, PacketId {PacketId}",
             clientId, packetId);
+        _metrics.UpdatePendingMessages(_pending.Count());
     }
 
     public Task<Qos2PendingState?> GetQos2StateAsync(string clientId, ushort packetId, CancellationToken cancellationToken)
@@ -126,6 +129,7 @@ public class LiteDbPendingStore : IPendingStore, IDisposable
     public async Task ClearPendingMessagesAsync(string clientId, CancellationToken cancellationToken)
     {
         var count = _pending.DeleteMany(x => x.ClientId == clientId);
+        _metrics.UpdatePendingMessages(_pending.Count());
     }
 
     public async Task UpdateRetryCountAsync(string clientId, ushort packetId, CancellationToken cancellationToken)

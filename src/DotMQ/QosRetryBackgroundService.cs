@@ -7,7 +7,7 @@ namespace DotMQ;
 /// <summary>
 /// Background service that periodically retries unacknowledged QoS 1 messages.
 /// </summary>
-public class Qos1RetryBackgroundService(IPendingStore pendingStore, ILogger<Qos1RetryBackgroundService> logger) : BackgroundService
+public class QosRetryBackgroundService(IPendingStore pendingStore, ILogger<QosRetryBackgroundService> logger) : BackgroundService
 {
     private readonly TimeSpan _retryInterval = TimeSpan.FromSeconds(30); // Check every 30 seconds
     private readonly TimeSpan _retryTimeout = TimeSpan.FromMinutes(1); // Retry messages older than 1 minute

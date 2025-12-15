@@ -74,7 +74,7 @@ public class ConnectHandler(
         }
 
         await sessionStore.SaveSessionAsync(session, ct);
-        metrics?.RecordMessageReceived();
+        metrics.RecordMessageReceived();
 
         logger.LogInformation("Client {ClientId} connected (SessionPresent: {SessionPresent})", packet.ClientId, sessionPresent);
 

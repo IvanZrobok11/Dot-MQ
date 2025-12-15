@@ -1,4 +1,4 @@
-namespace Broker.Core.Routing;
+namespace Broker.Core.Storage.Models;
 
 /// <summary>
 /// Represents a client subscription to a topic filter.

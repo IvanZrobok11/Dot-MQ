@@ -6,22 +6,15 @@ namespace DotMQ;
 /// <summary>
 /// Background service that periodically cleans up old storage data.
 /// </summary>
-public class StorageCleanupBackgroundService : BackgroundService
+public class StorageCleanupBackgroundService(
+    IOptions<StorageOptions> options,
+    ILogger<StorageCleanupBackgroundService> logger) : BackgroundService
 {
-    private readonly StorageOptions _options;
-    private readonly ILogger<StorageCleanupBackgroundService>? _logger;
-
-    public StorageCleanupBackgroundService(
-        IOptions<StorageOptions> options,
-        ILogger<StorageCleanupBackgroundService>? logger = null)
-    {
-        _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
-        _logger = logger;
-    }
+    private readonly StorageOptions _options = options.Value;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger?.LogInformation("Storage cleanup service started (interval: {Interval})", _options.CleanupInterval);
+        logger?.LogInformation("Storage cleanup service started (interval: {Interval})", _options.CleanupInterval);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -36,7 +29,7 @@ public class StorageCleanupBackgroundService : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger?.LogError(ex, "Error in storage cleanup service");
+                logger?.LogError(ex, "Error in storage cleanup service");
             }
 
             try
@@ -49,7 +42,7 @@ public class StorageCleanupBackgroundService : BackgroundService
             }
         }
 
-        _logger?.LogInformation("Storage cleanup service stopped");
+        logger?.LogInformation("Storage cleanup service stopped");
     }
 
     //private async Task PerformCleanupAsync(CancellationToken cancellationToken)

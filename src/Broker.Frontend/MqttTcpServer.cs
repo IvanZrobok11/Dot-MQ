@@ -1,5 +1,6 @@
 // Broker.Frontend/MqttTcpServer.cs
 using Broker.Core;
+using Broker.Core.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -27,6 +28,7 @@ public sealed class MqttTcpServer : IMqttTcpServer, IDisposable
     private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly BrokerOptions _options;
     private readonly ILogger<MqttTcpServer> _logger;
+    private readonly IBrokerMetricsService _metrics;
 
     private readonly Channel<TcpClient> _acceptChannel;
     private readonly CancellationTokenSource _cancellationTokenSource;
@@ -35,11 +37,13 @@ public sealed class MqttTcpServer : IMqttTcpServer, IDisposable
     public MqttTcpServer(
         IServiceScopeFactory serviceScopeFactory,
         IOptions<BrokerOptions> options,
-        ILogger<MqttTcpServer> logger)
+        ILogger<MqttTcpServer> logger,
+        IBrokerMetricsService metrics)
     {
         _serviceScopeFactory = serviceScopeFactory;
         _options = options.Value;
         _logger = logger;
+        _metrics = metrics;
 
         var capacity = Math.Max(16, _options.AcceptQueueCapacity);
         var opts = new BoundedChannelOptions(capacity) { FullMode = BoundedChannelFullMode.Wait };
@@ -112,6 +116,7 @@ public sealed class MqttTcpServer : IMqttTcpServer, IDisposable
                 if (mqttConnection != null && !string.IsNullOrEmpty(mqttConnection.ClientId))
                 {
                     ConnectionsByClientId.TryRemove(mqttConnection.ClientId, out _);
+                    _metrics.UpdateConnectedClients(ConnectionsByClientId.Count);
                 }
                 try
                 {
@@ -136,6 +141,7 @@ public sealed class MqttTcpServer : IMqttTcpServer, IDisposable
             try { old.RequestDisconnect("Session taken over"); } catch { }
         }
         ConnectionsByClientId.AddOrUpdate(clientId, connection, (_, _) => connection);
+        _metrics.UpdateConnectedClients(ConnectionsByClientId.Count);
         return Task.CompletedTask;
     }
 
@@ -143,6 +149,7 @@ public sealed class MqttTcpServer : IMqttTcpServer, IDisposable
     {
         if (string.IsNullOrEmpty(clientId)) return Task.CompletedTask;
         ConnectionsByClientId.TryRemove(clientId, out _);
+        _metrics.UpdateConnectedClients(ConnectionsByClientId.Count);
         return Task.CompletedTask;
     }
 
@@ -157,6 +164,7 @@ public sealed class MqttTcpServer : IMqttTcpServer, IDisposable
         foreach (var c in list) { try { c.RequestDisconnect("Server shutdown"); } catch { } }
         await Task.Delay(200);
         ConnectionsByClientId.Clear();
+        _metrics.UpdateConnectedClients(ConnectionsByClientId.Count);
         _logger.LogInformation("All connections closed");
     }
 

@@ -1,7 +1,7 @@
-﻿using MQTTnet;
-using MQTTnet.Client;
-using Microsoft.Extensions.Configuration;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using MQTTnet;
+using MQTTnet.Client;
 
 // Build configuration
 var configuration = new ConfigurationBuilder()
@@ -71,6 +71,9 @@ try
 {
     // Connect to broker
     logger.LogInformation("Connecting to broker...");
+    logger.LogInformation("Please press enter to connect:");
+    Console.ReadKey();
+
     var connectResult = await mqttClient.ConnectAsync(clientOptions);
 
     if (connectResult.ResultCode != MqttClientConnectResultCode.Success)

@@ -20,6 +20,7 @@ public static class ServiceCollectionExtensions
             .AddScoped<IIncomingPublishQosHandler, IncomingPublishQosHandler>()
             .AddScoped<IPacketHandler<MqttConnectPacket, MqttConnAckPacket>, ConnectHandler>()
             .AddScoped<IPacketHandler<MqttPublishPacket>, PublishHandler>()
+            .AddScoped<IPacketHandler<MqttPingReqPacket, MqttPingRespPacket>, PingReqHandler>()
             .AddScoped<IPacketHandler<MqttSubscribePacket, MqttSubAckPacket>, SubscribeHandler>()
             .AddScoped<IPacketHandler<MqttUnsubscribePacket, MqttUnsubAckPacket>, UnsubscribeHandler>()
             .AddScoped<IPacketHandler<MqttPubAckPacket>, PubAckHandler>()
@@ -48,7 +49,7 @@ public static class ServiceCollectionExtensions
     private static IServiceCollection AddBrokerHostedServices(this IServiceCollection services)
     {
         services.AddHostedService<MqttTcpServerHostedService>();
-        services.AddHostedService<Qos1RetryBackgroundService>();
+        services.AddHostedService<QosRetryBackgroundService>();
         services.AddHostedService<StorageCleanupBackgroundService>();
         return services;
     }

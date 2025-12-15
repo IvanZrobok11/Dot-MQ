@@ -1,6 +1,7 @@
 using Broker.Core;
 using Broker.Core.Packets;
 using Broker.Core.Routing;
+using Broker.Core.Storage.Models;
 using Microsoft.Extensions.Logging;
 
 namespace Broker.Frontend;
@@ -25,11 +26,12 @@ public class MessageRouter(
             throw new ArgumentNullException(nameof(publishPacket));
         }
 
-        //if (!TopicMatcher.IsValidTopicName(publishPacket.TopicName))
-        //{
-        //    logger?.LogWarning("Invalid topic name: {TopicName}", publishPacket.TopicName);
-        //    return;
-        //}
+        // in publish we cannot use withdraw unlike subscribe
+        if (!TopicMatcher.IsValidTopicName(publishPacket.TopicName))
+        {
+            logger?.LogWarning("Invalid topic name: {TopicName}", publishPacket.TopicName);
+            return;
+        }
 
         // Handle retained messages (storage will be handled at a higher level)
         if (publishPacket.Retain)
@@ -57,6 +59,7 @@ public class MessageRouter(
             // Create a PUBLISH packet with the appropriate QoS for this subscriber
             var subscriberPacket = CreateSubscriberPublishPacket(publishPacket, deliveryQos);
 
+            //TODO: qos 1 and 2
             // Route to subscriber - use QoS 1 handler if QoS is 1
             //if (deliveryQos == QoSLevel.AtLeastOnce)
             //{
@@ -100,19 +103,19 @@ public class MessageRouter(
         var connections = MqttTcpServer.ConnectionsByClientId;
         if (!connections.TryGetValue(subscription.ClientId, out var sender))
         {
-            logger?.LogWarning("No message sender found for client {ClientId}", subscription.ClientId);
+            logger.LogWarning("No message sender found for client {ClientId}", subscription.ClientId);
             return;
         }
 
         if (!sender.IsConnected)
         {
-            logger?.LogDebug("Client {ClientId} is not connected, skipping message delivery", subscription.ClientId);
+            logger.LogDebug("Client {ClientId} is not connected, skipping message delivery", subscription.ClientId);
 
             // For QoS 1/2, we should queue the message for later delivery
             // This will be handled at a higher level when we implement QoS 1/2 support
             if (packet.QoS > QoSLevel.AtMostOnce)
             {
-                logger?.LogDebug("Client {ClientId} is offline, message will be queued for QoS {Qos}",
+                logger.LogDebug("Client {ClientId} is offline, message will be queued for QoS {Qos}",
                     subscription.ClientId, packet.QoS);
             }
             return;
@@ -126,12 +129,12 @@ public class MessageRouter(
         }
         catch (Exception ex)
         {
-            logger?.LogError(ex, "Error routing message to client {ClientId}", subscription.ClientId);
+            logger.LogError(ex, "Error routing message to client {ClientId}", subscription.ClientId);
 
             // For QoS 1/2, queue the message for retry (handled at higher level)
             if (packet.QoS > QoSLevel.AtMostOnce)
             {
-                logger?.LogDebug("Error sending message to client {ClientId}, message will be queued for QoS {Qos}",
+                logger.LogDebug("Error sending message to client {ClientId}, message will be queued for QoS {Qos}",
                     subscription.ClientId, packet.QoS);
             }
         }
