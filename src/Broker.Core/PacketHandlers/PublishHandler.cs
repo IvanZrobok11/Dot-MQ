@@ -5,39 +5,40 @@ using Microsoft.Extensions.Logging;
 
 namespace Broker.Core.PacketHandlers;
 
-public class PublishHandler(IMessageRouter router,
+public class PublishHandler(IMessageRouter messageRouter,
     IIncomingPublishQosHandler incomingPublishQosHandler,
-    IRetainedStore retained,
+    IRetainedStore retainedStore,
     ILogger<PublishHandler> logger,
     IBrokerMetricsService metrics) : PacketHandlerBase<MqttPublishPacket>
 {
-    public override async Task HandleAsync(IMqttConnection connection, MqttPublishPacket packet, CancellationToken ct)
+    public override async Task HandleAsync(IMqttConnection connection, MqttPublishPacket packet, CancellationToken cancellationToken)
     {
         logger.LogDebug("Publish from {ClientId} to {Topic} (QoS {Qos})", connection.ClientId, packet.TopicName, packet.QoS);
         metrics.RecordMessageReceived();
         metrics.RecordMessagePublished();
 
+        // retain mark to send last message to new subscribers (after publishing)
         if (packet.Retain)
         {
             if (packet.Payload != null && packet.Payload.Length > 0)
             {
-                await retained.SaveAsync(packet, ct);
+                await retainedStore.SaveAsync(packet, cancellationToken);
                 logger.LogDebug("Stored retained message for {Topic}", packet.TopicName);
             }
             else
             {
-                await retained.DeleteAsync(packet.TopicName, ct);
+                await retainedStore.DeleteAsync(packet.TopicName, cancellationToken);
                 logger.LogDebug("Deleted retained message for {Topic}", packet.TopicName);
             }
         }
 
         if (packet.QoS == QoSLevel.AtMostOnce)
         {
-            await router.RouteAsync(packet, ct);
+            await messageRouter.RouteAsync(packet, cancellationToken);
             return;
         }
 
-        await incomingPublishQosHandler.HandleAsync(connection, packet, ct);
+        await incomingPublishQosHandler.HandleAsync(connection, packet, cancellationToken);
     }
 }
 

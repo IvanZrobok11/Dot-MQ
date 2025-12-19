@@ -99,7 +99,7 @@ public sealed class MqttTcpServer : IMqttTcpServer, IDisposable
             {
                 var options = new BrokerOptions
                 {
-                    MaxPacketSize = _options.MaxPacketSize, /* TODO copy needed values */
+                    MaxPacketSize = _options.MaxPacketSize,
                 };
                 var factory = scope.ServiceProvider.GetRequiredService<MqttClientConnectionFactory>();
                 mqttConnection = factory.CreateConnection(tcpClient);

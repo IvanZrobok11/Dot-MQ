@@ -182,7 +182,7 @@ public class MqttConnectPacket : MqttPacket
     public static MqttConnectPacket Deserialize(byte[] data)
     {
         var reader = new MqttPacketReader(data);
-        
+
         // Skip fixed header (already validated)
         reader.ReadByte(); // Fixed header
         reader.ReadVariableLength(); // Variable length
@@ -194,7 +194,7 @@ public class MqttConnectPacket : MqttPacket
         };
 
         // Read connect flags
-        byte connectFlags = reader.ReadByte();
+        byte connectFlags = reader.ReadByte(); // read flags
         packet.CleanSession = (connectFlags & 0x02) != 0;
         packet.WillFlag = (connectFlags & 0x04) != 0;
         packet.WillQos = (QoSLevel)((connectFlags >> 3) & 0x03);

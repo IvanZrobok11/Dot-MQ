@@ -1,13 +1,3 @@
-// Refactored MQTT TCP server + connection handling
-// Key improvements:
-// - Accept queue with bounded Channel to provide backpressure
-// - Avoid unobserved Task.Run: use dedicated worker tasks and observe exceptions
-// - Linked CancellationTokens per connection
-// - Clean separation: HostedService accepts TcpClients -> pushes to server's queue
-// - MqttClientConnection handles only TCP lifecycle and parsing loop; dispatching is separated
-// - Safe Dispose/Shutdown (Shutdown socket to unblock ReadAsync)
-// - Max packet size enforcement and simple packet parsing improvements
-
 using Broker.Core;
 using Broker.Frontend;
 using Microsoft.Extensions.Options;
@@ -16,7 +6,6 @@ using System.Net.Sockets;
 
 namespace DotMQ;
 
-// Hosted service -- only responsibility: start/stop TcpListener and push accepted clients to queue
 public sealed class MqttTcpServerHostedService(
     IMqttTcpServer mqttTcpServer,
     IOptions<BrokerOptions> options,

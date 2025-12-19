@@ -17,7 +17,7 @@ public interface IIncomingPublishQosHandler
 public class IncomingPublishQosHandler(
     IPendingStore pendingStore,
     PacketIdManager packetIdManager,
-    IMessageRouter router,
+    IMessageRouter messageRouter,
     ILogger<IncomingPublishQosHandler> logger) : IIncomingPublishQosHandler
 {
     public async Task HandleAsync(IMqttConnection connection, MqttPublishPacket packet, CancellationToken cancellationToken)
@@ -28,7 +28,7 @@ public class IncomingPublishQosHandler(
             await pendingStore.AddPendingAsync(connection.ClientId, id, packet, cancellationToken);
             var pubAck = new MqttPubAckPacket { PacketId = id };
             await connection.SendAsync(pubAck, cancellationToken);
-            await router.RouteAsync(packet, cancellationToken);
+            await messageRouter.RouteAsync(packet, cancellationToken);
         }
         else if (packet.QoS == QoSLevel.ExactlyOnce)
         {

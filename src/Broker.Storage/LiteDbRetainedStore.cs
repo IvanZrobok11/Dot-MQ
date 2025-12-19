@@ -82,7 +82,7 @@ public class LiteDbRetainedStore : IRetainedStore, IDisposable
 
         foreach (var doc in allDocs)
         {
-            if (TopicMatches(doc.Topic, topicFilter))
+            if (TopicMatcher.Matches(topicFilter, doc.Topic))
             {
                 matching.Add(new RetainedMessage
                 {
@@ -161,47 +161,6 @@ public class LiteDbRetainedStore : IRetainedStore, IDisposable
             QoS = doc.QoS,
             Retain = true
         };
-    }
-
-    private static bool TopicMatches(string topic, string filter)
-    {
-        // Handle exact match
-        if (topic == filter)
-            return true;
-
-        var topicParts = topic.Split('/');
-        var filterParts = filter.Split('/');
-
-        // Multi-level wildcard
-        if (filterParts.Length > 0 && filterParts[^1] == "#")
-        {
-            // Check all parts before #
-            for (int i = 0; i < filterParts.Length - 1; i++)
-            {
-                if (i >= topicParts.Length)
-                    return false;
-
-                if (filterParts[i] != "+" && filterParts[i] != topicParts[i])
-                    return false;
-            }
-            return true;
-        }
-
-        // Must have same number of levels
-        if (topicParts.Length != filterParts.Length)
-            return false;
-
-        // Check each level
-        for (int i = 0; i < filterParts.Length; i++)
-        {
-            if (filterParts[i] == "+")
-                continue;
-
-            if (filterParts[i] != topicParts[i])
-                return false;
-        }
-
-        return true;
     }
 
     public void Dispose()

@@ -63,7 +63,7 @@ public class MessageRouter(
             // Route to subscriber - use QoS 1 handler if QoS is 1
             //if (deliveryQos == QoSLevel.AtLeastOnce)
             //{
-            //    routingTasks.Add(qos1Handler.HandlePublishAsync(subscription.ClientId, subscriberPacket, cancellationToken));
+            //    routingTasks.Add(HandlePublishAsync(subscription.ClientId, subscriberPacket, cancellationToken));
             //}
             //else
             {
